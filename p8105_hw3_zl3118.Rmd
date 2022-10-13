@@ -1,0 +1,135 @@
+---
+title: "p8105_hw3_zl3118"
+author: "Shirley Liang"
+date: "2022-10-13"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+
+library(tidyverse)
+
+```
+
+### Problem 1
+
+```{r Problem1}
+
+library(p8105.datasets)
+data("instacart")
+
+
+
+```
+
+### Probelm 2
+
+```{r clean dataset and add weekday/weekend variable}
+
+cvd <- read.csv("accel_data.csv", header = TRUE) %>%
+janitor::clean_names() %>%
+pivot_longer(
+    activity_1:activity_1440, 
+    names_prefix = "activity_", 
+    names_to = "minute", 
+    values_to = "activity"
+    ) %>%
+mutate(wdorwe = case_when(day == 'Saturday' | day == 'Sunday' ~ 'weekend', day == 'Monday' | day == 'Tuesday' | day == 'Wednesday' | day == 'Thursday' | day == 'Friday' ~ 'weekday')) %>%
+mutate(minute = as.numeric(minute))
+  
+```
+
+##### In the accel_data dataset, there are `r nrow(cvd)` observations and `r ncol(cvd)`variables. The main varibales include week, day_id, day of the week, weekday or weekend, and activity counts for each minute of a 24-hour day starting at midnight.
+
+```{r create table of sctivity summary}
+
+cvdsum <- cvd %>% 
+group_by(week, day) %>% 
+summarise(activity_sum = sum(activity)) %>% 
+knitr::kable(
+    catpion = "Total activity variable for each day"
+  )
+
+cvdsum
+
+```
+##### From the total activity over the day by week and day of the week, we can see there are more activities per day on Friday, Saturday, and Sunday compared to other days of the week for most weeks. 
+
+```{r vitulization, creat ggplot}
+plotcvd <- cvd %>% ggplot(aes(x = minute/60, y = activity, color = day)) +
+  geom_line() + 
+  labs(
+    x = "Hours",
+    coord_cartesian(xlim = c (0,24)),
+    y = "Activity", 
+    title = "24-hour activity panel for each day",
+    caption = "single-panel plot"
+  )
+
+ggsave("plotcvd.png")
+
+plotcvd
+
+```
+##### From the plot above, we can see most of the activities are around 8-9pm in the evening. There are also more activity in morning time 7-10am and 4-5pm in the afternoon compare to other times. 
+
+### Problem 3
+
+```{r load dataset}
+library(p8105.datasets)
+data("ny_noaa")
+
+noaa <- ny_noaa %>% janitor::clean_names() 
+
+```
+
+##### The ny_noaa dataset includes `r nrow(noaa)` observations and `r ncol(noaa)` variables including: `r names(noaa)`. Missing values are seen largly in variables. There are `r sum(is.na(noaa$prcp))` missing values for variable `prcp`. There are `r sum(is.na(noaa$snow))` missing values for the variable `snow`. There are `r sum(is.na(noaa$snwd))` missing values for the variable `snwd`. There are `r sum(is.na(noaa$tmax))` missing values for the variable `tmax`. There are `r sum(is.na(noaa$tmin))` missing values for the variable `tmin`.
+
+```{r seprate date & adjust temp variables}
+
+noaa <- noaa %>% 
+separate(col = date, into = c('Year','Month','Day'), sep = '-') 
+
+noaa <- noaa %>% mutate(tmax = as.numeric(tmax), tmin = as.numeric(tmin),
+tmin = tmin / 10, tmax = tmax / 10) %>% 
+filter(prcp >= "0", snow >= "0", snwd >= "0")
+
+countsnowfall <- noaa %>% count(snow)
+
+countsnowfall
+
+```
+##### From the table above, we can see the most common snowfall report is 0 (n=1782135). It is because NY does not have snowfall on most of the days. The second most common is 3mm snowfall with n = 7502. 
+
+```{r show the average max temperature in January and in July}
+
+noaa_avg_max_temp <- noaa %>% 
+  mutate(Month = as.numeric(Month)) %>% 
+  group_by(id, Year, Month) %>% 
+  filter(Month %in% c(1, 7)) %>% 
+  summarize(meantmax = mean(tmax, na.rm = TRUE, color = id)) %>% 
+  ggplot(aes(x = Year, y = meantmax, group = id)) + 
+    geom_point(alpha = 0.25) + 
+    geom_line(alpha = 0.25) + 
+    facet_grid(. ~ Month) +
+    labs(title = 
+           "The average maximum temperature in January and in July in each station across years",
+       x = "Year",
+       y = "Average maximum temperature") 
+
+noaa_avg_max_temp
+
+```
+##### In general, the max tempature in July is higher than January. We can see the outliers in January is more than the outliers in July. And max tempature in January fluate more than that of July. 
+
+```{r tmax vs tmin for the full dataset}
+
+tmaxtmin <- noaa %>% 
+  ggplot(aes(x = tmin, y = tmax)) + 
+  geom_hex() +
+  labs(title = "tmin vs tmax for the full dataset") 
+
+tmaxtmin
+
+```
+
